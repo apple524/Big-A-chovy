@@ -47,6 +47,25 @@ class RuleConsistencyTests(unittest.TestCase):
         self.assertTrue(risk["announcement"]["hard_keywords"])
         self.assertIn("600664", risk["hard_blacklist"])
 
+    def test_screening_thresholds_have_one_shared_source_and_experiment_is_closed(self):
+        screening = RULE_CONFIG["screening"]
+        for section in (
+            "resonance",
+            "strict_ultra",
+            "strict_trend",
+            "trend_observation",
+            "low_ultra",
+            "low_trend",
+            "watchlist",
+            "capital_rank",
+        ):
+            self.assertIsInstance(screening[section], dict)
+        experiment = screening["low_absorb"]["experimental_retest_gate"]
+        self.assertFalse(experiment["enabled"])
+        self.assertEqual(experiment["permission"], "simulated_only")
+        self.assertEqual(screening["watchlist"]["score_dist60_scale"], 1.0)
+        self.assertEqual(RULE_CONFIG["realtime"]["entry_exit"]["take_profit_1_pct"], 3.0)
+
     def test_complete_shadow_result_requires_daily_kline_and_all_metrics(self):
         incomplete = {
             "checked": True,
@@ -88,15 +107,15 @@ class RuleConsistencyTests(unittest.TestCase):
     def test_progress_uses_completed_results_not_collected_signals(self):
         db = {"targets": shadow_targets(), "samples": {key: [] for key in shadow_targets()}}
         db["samples"]["coalition"] = [{"t1_result": None} for _ in range(4)]
-        text = (PROJECT_ROOT / "选股框架.md").read_text()
+        text = (PROJECT_ROOT / "选股框架.md").read_text(encoding="utf-8")
         # 用实际文档结构构造4条未结算信号，正确完成数为0。
         db["samples"]["divergence"] = [{"t1_result": None} for _ in range(4)]
         text = text.replace("已采集4；完整结算1/20", "已采集4；完整结算0/20")
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "选股框架.md").write_text(text)
+            (root / "选股框架.md").write_text(text, encoding="utf-8")
             self.assertFalse(check_framework_progress(root, db)["fail"])
-            (root / "选股框架.md").write_text(text.replace("已采集4；完整结算0/20", "已采集4；完整结算4/20"))
+            (root / "选股框架.md").write_text(encoding="utf-8", data=text.replace("已采集4；完整结算0/20", "已采集4；完整结算4/20"))
             self.assertTrue(check_framework_progress(root, db)["fail"])
 
     def test_current_workspace_has_no_consistency_failures(self):

@@ -1,4 +1,9 @@
+> **重要通知**：目前行情数据接口访问受限，现有版本可能无法正常获取行情数据。你可以下载项目源码，自行接入合适的付费行情接口。后续会继续适配并发布新版本，届时会在 GitHub Releases 和本 README 更新说明。
+
 # A 股量化筛选工作台
+
+[![Latest preview release](https://img.shields.io/github/v/release/LuQTest/Big-A-chovy?include_prereleases&label=latest%20preview&style=flat-square)](https://github.com/LuQTest/Big-A-chovy/releases)
+[![GitHub stars](https://img.shields.io/github/stars/LuQTest/Big-A-chovy?style=flat-square&label=stars)](https://github.com/LuQTest/Big-A-chovy/stargazers)
 
 这是一个面向 A 股盘中筛选、低吸候选、明日观察池和复盘分析的本地工具集。
 
@@ -10,9 +15,22 @@
 
 - 历史版本：`v0.3.4`，保留原有版本标签。
 - 线上预览版：`v0.3.5-preview.1`，指向清理前的线上基线。
-- 当前开发预览版：`v0.4.0-preview.1`，包含本次路径、隐私排除和跨用户运行兼容性收尾；盘中网络稳定性与策略效果仍在持续验证，暂不称为稳定版。
+- 当前开发预览版：[v0.5.0-preview.3](https://github.com/LuQTest/Big-A-chovy/releases/tag/v0.5.0-preview.3)，修复板块统计哨兵值崩溃，并在非交易日跳过自动筛选；仍为预览版。
+- Docker 发布版：[v0.5.0-docker.2](https://github.com/LuQTest/Big-A-chovy/releases/tag/v0.5.0-docker.2)，基于同一源码提供 `linux/amd64` 和 `linux/arm64` 容器镜像。
 
 完整更新记录见 [`CHANGELOG.md`](CHANGELOG.md)。
+
+## GitHub Star History
+
+仓库的 Star 数量和趋势图会随 GitHub 数据自动更新。点击徽章可查看当前 Star 列表，点击趋势图可查看详细历史：
+
+<a href="https://www.star-history.com/?repos=LuQTest%2FBig-A-chovy&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=LuQTest/Big-A-chovy&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=LuQTest/Big-A-chovy&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=LuQTest/Big-A-chovy&type=date&legend=top-left" />
+ </picture>
+</a>
 
 ## 一、快速开始
 
@@ -22,15 +40,70 @@
 - Python 3.10 或更高版本，建议使用 Python 3.13。
 - 能访问行情接口的网络环境。默认 `auto` 模式会实测直连、本机候选代理端口、环境代理和系统代理后择优；如直连受限，请在 `daily-stock-analysis/scripts/proxy_ports.json` 中配置可用的本机 HTTP 代理端口。代理软件不限定为 Clash。
 
-> 当前版本未做 Windows 适配。项目中的 `.command` 启动器、macOS `scutil` 代理检测、`open`/`osascript` 和部分进程管理命令均按 macOS 编写。Windows 用户可以自行尝试直接运行核心 Python 脚本，但 GUI、实时看板启动、代理检测和路径行为不保证正常，也暂不提供 Windows 专用安装或启动方案。
+> Tkinter GUI、`.command` 启动器和部分 macOS 代理/进程管理逻辑仍按 macOS 编写；Windows 用户请使用上方 Web 工作台。命令行核心脚本可直接尝试，但不代表完整桌面 GUI 已适配。
 
 脚本依赖尽量使用 Python 标准库，并对可选依赖提供了降级处理：
 
 ```bash
-python3 -m pip install requests pyyaml
+python3 -m pip install -r requirements.txt
 ```
 
 `requests` 用于更稳定地访问行情接口；`pyyaml` 用于读取决策记录中的持仓快照。没有这些库时，部分功能仍可使用，但网络或 YAML 解析能力可能降级。
+
+### Web 工作台（B/S 架构，推荐 Windows 用户使用）
+
+不想受限于 macOS GUI？启动 Web 工作台，在浏览器里使用筛选、报告库和工具箱：
+
+```bash
+# Windows：双击根目录 启动工作台.bat，或：
+uv run --python 3.13 --with requests --with pyyaml --with tzdata python daily-stock-analysis/scripts/web_workbench.py
+
+# macOS / Linux
+python3 daily-stock-analysis/scripts/web_workbench.py
+```
+
+- 工作台：<http://localhost:8765/workbench>（一次性筛选 + 报告库 + 行情/基本面/持仓/T+1 工具箱）
+- 实时看板：<http://localhost:8765/>（原版页面不变）
+
+Web 工作台默认只监听本机，避免报告、持仓和决策快照被局域网读取。确实需要手机或其他电脑访问时，显式运行：
+
+```bash
+python3 daily-stock-analysis/scripts/web_workbench.py --host 0.0.0.0
+```
+
+这会开放包含个人数据的接口，只应在可信局域网使用，禁止直接暴露到公网。
+
+详细说明见 [`docs/web-workbench.md`](docs/web-workbench.md)。
+
+### Docker 部署（公开仓库）
+
+仓库提供一个不依赖 macOS GUI 的 Web 工作台与实时看板容器。源码、Docker 配置和 GitHub Actions 可以公开发布；报告、决策记录、持仓、影子样本和运行缓存仍保留在本机挂载目录，不会写入镜像。
+
+```bash
+cp .env.example .env       # 不需要代理时也可以跳过
+docker compose up -d --build
+```
+
+浏览器打开 <http://localhost:8765/workbench> 使用工作台，打开 <http://localhost:8765/> 查看实时看板；查看状态或日志：
+
+```bash
+docker compose ps
+docker compose logs -f dashboard
+docker compose down
+```
+
+容器默认尝试直连行情接口。如果宿主机需要代理，在 `.env` 中填写容器可访问的地址，例如 Docker Desktop 下：
+
+```dotenv
+HTTP_PROXY=http://host.docker.internal:7890
+HTTPS_PROXY=http://host.docker.internal:7890
+```
+
+Docker 运行版同时启动 Web 工作台和实时看板，不启动 Finder、macOS `.command` 启动器或桌面 GUI；宿主机端口默认只绑定 `127.0.0.1`，需要局域网访问时应明确修改 compose 端口映射并确认网络可信。它同样不会自动下单。发布标签会由 GitHub Actions 构建并发布多架构镜像到 GitHub Container Registry；如果首次发布后镜像仍是私有的，需要在 GitHub Packages 中将其改为 Public。
+
+```bash
+docker pull ghcr.io/luqtest/big-a-chovy:v0.5.0-docker.2
+```
 
 ### 1. 启动普通筛选 GUI
 
@@ -321,3 +394,19 @@ python3 -m unittest discover -s daily-stock-analysis/scripts -p 'test_*.py'
 - [`daily-stock-analysis/references/trading-rules.md`](daily-stock-analysis/references/trading-rules.md)：市场、板块、个股、买点和仓位规则。
 
 行情筛选不构成收益保证或个性化投资建议。任何真实交易都应以使用者自己的风险承受能力和交易纪律为准。
+
+## 十二、使用边界与社区规范
+
+本项目定位为**本地自用的开源行情研究、数据处理和规则筛选工具**。它不是证券公司或证券投资咨询机构，**不是荐股软件**，不提供证券投资咨询、荐股、代客理财、代客下单或证券账户管理服务。
+
+项目输出仅供技术研究、数据核验和个人信息整理，不构成任何证券或期货的买卖建议、收益承诺或内幕信息。使用者应自行核验数据、独立判断，并自行承担交易、部署、修改或传播本项目产生的风险和后果。任何 fork、二次开发或对外部署均由相应使用者自行负责。
+
+在法律允许范围内，作者不对任何第三方因使用、修改、部署或传播本项目产生的交易损失、数据错误、系统中断或合规后果承担责任；本声明不排除法律规定不得排除的责任。项目的实际功能、运营方式和是否有偿，仍以实际情况为准，不因本声明而改变适用法律法规下的认定。
+
+项目社区只讨论代码、数据处理、测试、文档和本地运行问题：
+
+- 不讨论具体股票的买入、卖出、持仓、仓位、目标价或实时交易决策；
+- 不接受自动交易、券商交易接口、自动报单/撤单、代客理财或账户管理相关 PR；
+- 不提交账户、持仓、交易金额、个人决策记录、API 密钥或其他敏感数据。
+
+详细贡献规则见 [`CONTRIBUTING.md`](CONTRIBUTING.md)；Issue 提交前请使用仓库提供的模板。
